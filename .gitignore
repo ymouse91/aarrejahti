@@ -1,0 +1,7 @@
+tmp/
+lautapeli/
+claude/
+test-output/
+node_modules/
+*.log
+ipad-*.png

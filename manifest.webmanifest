@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "Aarrejahti – kuusi retkeä",
+  "short_name": "Aarrejahti",
+  "description": "Yhteinen aarrekartta ja kuusi päättelyretkeä PC:lle ja iPadille.",
+  "lang": "fi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#203f38",
+  "theme_color": "#203f38",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
