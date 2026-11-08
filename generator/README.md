@@ -4,7 +4,7 @@ Puhelimella käytettävä lisäosa fyysiseen Aarrejahti-lautapeliin.
 
 **Avaa:** https://ymouse91.github.io/aarrejahti/generator/
 
-Arvo kortti, aseta kuviot laudalle ja ota valitun retken vihjekortit esiin. Näytöllä on yksi retki kerrallaan. Ratkaisun tarkistus käyttää päivitetyn ratkaisukortin 314160 avainkoodeja. Mukana ovat kaikki vihjekortit 1–68.
+Arvo kortti, aseta kuviot laudalle ja ota valitun retken vihjekortit esiin. Näytöllä on yksi retki kerrallaan. Retkien järjestys on 1–4, harha, pääkallo. Ratkaisun tarkistus käyttää päivitetyn ratkaisukortin 314160 avainkoodeja. Mukana ovat kaikki vihjekortit 1–68. Sovelluksen versio on 1.1.0.
 
 ## Asennus ja offline-käyttö
 

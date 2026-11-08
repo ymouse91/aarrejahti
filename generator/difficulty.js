@@ -59,7 +59,7 @@ const CardDifficulty=(()=>{
  function score(card){
   const tasks=card.tasks.map(t=>({...t,difficulty:scoreTask(card,t)}));
   const normal=tasks.slice(0,4).sort((a,b)=>a.difficulty.score-b.difficulty.score);
-  card={...card,tasks:[...normal,...tasks.slice(4)].map((t,i)=>({...t,id:i+1}))};
+  card={...card,tasks:[...normal,tasks.find(t=>t.kind==='disappearance'),tasks.find(t=>t.kind==='skull')].map((t,i)=>({...t,id:i+1}))};
   card.score=card.tasks.reduce((sum,t)=>sum+t.difficulty.score,0);
   card.name=String(Math.round(card.score));card.model='D1';
   return card;
