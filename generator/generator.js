@@ -2,8 +2,10 @@
 const CardGenerator=(()=>{
 const G=typeof module!=='undefined'?require('./rules.js'):Game;
 const data=typeof module!=='undefined'?require('./data.js'):CardData;
-function generate(seed,progress=()=>{}){
+function generate(seed,progress=()=>{},options={}){
 const difficulty=typeof module!=='undefined'?require('./difficulty.js'):CardDifficulty;
+const levels=typeof module!=='undefined'?require('./levels.js'):CardLevels;
+const level=options.level||'normal';if(!levels.rules[level])throw Error('Tuntematon vaikeustaso.');
 const catalog=data.catalog;
 const active=catalog,all=Array.from({length:120},(_,i)=>i),FULL=(1n<<120n)-1n;
 let state=seed>>>0;const rand=n=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return Math.floor(state/4294967296*n)};
@@ -85,7 +87,7 @@ function layout(anchor){
  return {terrain:data.terrain,landmarks};
 }
 
- for(let attempt=0;attempt<500;attempt++){
+ for(let attempt=0;attempt<(level==='challenging'?4000:1500);attempt++){
   if(attempt%5===0)progress(attempt);
   const anchor=59+rand(10),board=layout(anchor);if(!board)continue;
   const ms=masks(board);if(pop(ms[anchor-1])<4)continue;
@@ -100,7 +102,8 @@ function layout(anchor){
   if([...counts.values()].some(n=>n>2))continue;
   const card=difficulty.score({...board,tasks,seed:seed>>>0,attempts:attempt+1,answerScheme:'314160'});
   if(!difficulty.clueUsageValid(card))continue;
-  card.clueRules='R2';return card;
+  if(!levels.accepts(card,level))continue;
+  card.clueRules='R2';card.level=level;card.levelRules=levels.version;return card;
  }
  throw Error('Sopivaa korttia ei löytynyt. Arvo uudelleen.');
 }
