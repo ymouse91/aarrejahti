@@ -64,6 +64,16 @@ const CardDifficulty=(()=>{
   card.name=String(Math.round(card.score));card.model='D1';
   return card;
  }
- return {score,scoreTask,price};
+ function clueUsageValid(card){
+  const counts=new Map();
+  for(let i=0;i<card.tasks.length;i++){
+   const ids=card.tasks[i].clueIds;
+   if(new Set(ids).size!==ids.length)return false;
+   if(i&&ids.some(n=>card.tasks[i-1].clueIds.includes(n)))return false;
+   for(const n of ids){const count=(counts.get(n)||0)+1;if(count>2)return false;counts.set(n,count)}
+  }
+  return true;
+ }
+ return {score,scoreTask,price,clueUsageValid};
 })();
 if(typeof module!=='undefined')module.exports=CardDifficulty;

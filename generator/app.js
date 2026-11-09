@@ -73,7 +73,7 @@
   $('answer-dialog').showModal();
  };
  const requested=new URL(location.href).searchParams.get('kortti');
- try{const saved=JSON.parse(localStorage.getItem(STORE));if(saved?.card?.model==='D1'&&saved.card.answerScheme==='314160'&&saved.card.tasks.length===6&&saved.card.landmarks.length>=6){card=saved.card;index=Math.min(5,Math.max(0,Number(saved.index)||0))}}catch{}
+ try{const saved=JSON.parse(localStorage.getItem(STORE));if(saved?.card?.model==='D1'&&saved.card.clueRules==='R2'&&saved.card.answerScheme==='314160'&&saved.card.tasks.length===6&&saved.card.landmarks.length>=6){card=saved.card;index=Math.min(5,Math.max(0,Number(saved.index)||0))}}catch{}
  // Keep an existing card and selected expedition when migrating the old last-two order.
  if(card){const selected=card.tasks[index];card.tasks=[...card.tasks.filter(t=>!t.kind),card.tasks.find(t=>t.kind==='disappearance'),card.tasks.find(t=>t.kind==='skull')].map((t,i)=>({...t,id:i+1}));index=card.tasks.findIndex(t=>t.target===selected.target&&t.kind===selected.kind)}
  if(card&&(!requested||String(card.seed)===requested)){render();save();status('')}else generate(requested&&/^\d{1,10}$/.test(requested)?Number(requested)>>>0:undefined);

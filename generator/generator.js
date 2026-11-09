@@ -3,6 +3,7 @@ const CardGenerator=(()=>{
 const G=typeof module!=='undefined'?require('./rules.js'):Game;
 const data=typeof module!=='undefined'?require('./data.js'):CardData;
 function generate(seed,progress=()=>{}){
+const difficulty=typeof module!=='undefined'?require('./difficulty.js'):CardDifficulty;
 const catalog=data.catalog;
 const active=catalog,all=Array.from({length:120},(_,i)=>i),FULL=(1n<<120n)-1n;
 let state=seed>>>0;const rand=n=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return Math.floor(state/4294967296*n)};
@@ -94,7 +95,12 @@ function layout(anchor){
   if(fail)continue;tasks.push(fourth);
   const s=skull(board,ms,used,null);if(!s)continue;tasks.push(s);used.add(s.target);
   const r=removal(board,ms,used);if(!r)continue;tasks.push(r);
-  return {...board,tasks,seed:seed>>>0,attempts:attempt+1,answerScheme:'314160'};
+  // The adjacency rule is evaluated after the final difficulty ordering.
+  const counts=new Map();for(const t of tasks)for(const n of t.clueIds)counts.set(n,(counts.get(n)||0)+1);
+  if([...counts.values()].some(n=>n>2))continue;
+  const card=difficulty.score({...board,tasks,seed:seed>>>0,attempts:attempt+1,answerScheme:'314160'});
+  if(!difficulty.clueUsageValid(card))continue;
+  card.clueRules='R2';return card;
  }
  throw Error('Sopivaa korttia ei löytynyt. Arvo uudelleen.');
 }
