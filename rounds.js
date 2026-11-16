@@ -2,25 +2,108 @@
 const Expeditions = (() => {
   const G=typeof module!=='undefined'?require('./engine.js'):Game;
   const D=typeof module!=='undefined'?require('./game-data.js'):ExpeditionData;
-  // Keep the physical game's 60 clue IDs intact; browser-only arithmetic follows them.
+  // Original physical clues stay at 1–60; the new pair variations follow.
   const catalog=D.catalog.map(c=>({...c}));
   const refs=[0,1,3].flatMap(shape=>[0,1].map(color=>({kind:'markers',shape,color})));
-  const arithmetic=c=>['difference','sum'].includes(c.rule.kind);
+  const arithmetic=c=>c.rule.kind==='difference';
   for(let a=0;a<refs.length;a++)for(let b=0;b<refs.length;b++){
     if(a===b)continue;
-    for(const n of [1,2,3]){
-      const rule={kind:'difference',ref:refs[a],other:refs[b],n};
+    for(const kind of ['equal','closer','difference'])for(const n of (kind==='difference'?[1,2]:[null])){
+      if(kind==='equal'&&a>b)continue;
+      const rule={kind,ref:refs[a],other:refs[b],...(n===null?{}:{n})};
+      if(catalog.some(c=>c.rule.kind===kind&&c.rule.n===rule.n&&((JSON.stringify(c.rule.ref)===JSON.stringify(rule.ref)&&JSON.stringify(c.rule.other)===JSON.stringify(rule.other))||(kind==='equal'&&JSON.stringify(c.rule.ref)===JSON.stringify(rule.other)&&JSON.stringify(c.rule.other)===JSON.stringify(rule.ref)))))continue;
       catalog.push({id:catalog.length+1,rule,tier:2,family:`relation${Math.min(a,b)}-${Math.max(a,b)}`,...G.describe(rule)});
     }
-    if(a<b)for(let n=4;n<=12;n++){
-      const rule={kind:'sum',ref:refs[a],other:refs[b],n};
-      catalog.push({id:catalog.length+1,rule,tier:2,family:`relation${a}-${b}`,...G.describe(rule)});
-    }
   }
-  // Longer sums allow the missing marker to be deduced across the full board.
-  for(let a=0;a<refs.length;a++)for(let b=a+1;b<refs.length;b++)for(let n=13;n<=24;n++){
-    const rule={kind:'sum',ref:refs[a],other:refs[b],n};
-    catalog.push({id:catalog.length+1,rule,tier:2,family:`relation${a}-${b}`,...G.describe(rule)});
+  function clueUsageValid(tasks){
+    const counts=new Map();return tasks.every((t,i)=>new Set(t.clueIds).size===t.clueIds.length&&t.clueIds.every(id=>{
+      const n=(counts.get(id)||0)+1;counts.set(id,n);return n<=2&&(!i||!tasks[i-1].clueIds.includes(id));
+    }));
+  }
+  function normalDifficulty(board,task){
+    const ids=task.clueIds,truth=ids.map(id=>G.compile(board,catalog[id-1].rule));
+    const price=r=>{
+      const n=q=>board.landmarks.filter(m=>m.s===q.shape&&m.color===q.color).length;
+      if(r.kind==='terrain')return 1;if(r.kind==='neighbor')return 3;if(r.kind==='boundary')return 4;
+      if(['distance','range'].includes(r.kind)){const k=r.ref.kind==='markers'?n(r.ref):1;return (r.ref.kind==='markers'?2*k:r.ref.kind==='edge'?2:3)+(r.kind==='range'?.5*k:0);}
+      const a=n(r.ref),b=n(r.other);return 2*(a+b)+.5*a*b+(['difference','sum'].includes(r.kind)?a*b:0);
+    };
+    const prices=ids.map(id=>price(catalog[id-1].rule)),values=[];
+    function walk(order,left,work){if(order.length===ids.length){values.push(work);return;}
+      for(let j=0;j<ids.length;j++)if(!order.includes(j))walk([...order,j],left.filter(truth[j]),work+left.length*prices[j]);}
+    walk([],all,0);const best=Math.min(...values),good=values.filter(v=>v<=best*1.2+1e-9).length;
+    return best*(1+.25*(1-good/values.length));
+  }
+ function price(board,r){
+  const n=ref=>board.landmarks.filter(m=>m.s===ref.shape&&m.color===ref.color).length;
+  if(r.kind==='terrain')return 1;
+  if(r.kind==='neighbor')return 3;
+  if(r.kind==='boundary')return 4;
+  if(['distance','range'].includes(r.kind)){
+   const v=r.ref.kind==='markers'?2*n(r.ref):r.ref.kind==='edge'?2:3;
+   return v+(r.kind==='range'?.5*(r.ref.kind==='markers'?n(r.ref):1):0);
+  }
+  const a=n(r.ref),b=n(r.other);
+  return 2*(a+b)+.5*a*b+(r.kind==='difference'?a*b:0);
+ }
+ function scoreTask(board,task){
+  const ids=task.clueIds,rules=ids.map(id=>catalog[id-1].rule),kind=task.kind||'normal';
+  const removals=board.landmarks.filter(m=>board.landmarks.filter(n=>n.s===m.s&&n.color===m.color).length>1);
+  const variants=new Map(removals.map(m=>[m.id,{...board,landmarks:board.landmarks.filter(n=>n!==m)}]));
+  const special=kind==='disappearance'||kind==='addition';
+  if(kind==='addition'){
+   variants.clear();
+   for(let id=0;id<120;id++)if(!board.landmarks.some(m=>m.id===id))variants.set(id,{...board,landmarks:[...board.landmarks,{...task.addedMarker,id}]});
+  }
+  const states=[];
+  for(let cell=0;cell<120;cell++){
+   if(kind==='normal')states.push([cell,null]);
+   else if(kind==='skull')for(const id of ids)states.push([cell,id]);
+   else for(const id of variants.keys())if(cell!==id)states.push([cell,id]);
+  }
+  const truth=[],keys=[],costs=[];
+  rules.forEach((r,j)=>{
+   const original=G.compile(board,r),changed=new Map([...variants].map(([id,b])=>[id,G.compile(b,r)]));
+   truth[j]=[];keys[j]=[];costs[j]=new Map();
+   states.forEach(([cell,h],s)=>{
+    const b=special?variants.get(h):board;
+    const raw=special?changed.get(h)(cell):original(cell);
+    truth[j][s]=raw!==(kind==='skull'&&h===ids[j]);
+    const marker=kind==='addition'?task.addedMarker:kind==='disappearance'?board.landmarks.find(m=>m.id===h):null;
+    const affected=marker&&[r.ref,r.other].some(ref=>ref?.kind==='markers'&&ref.shape===marker.s&&ref.color===marker.color);
+    const key=cell+(affected?(h+1)*120:0);
+    keys[j][s]=key;costs[j].set(key,price(b,r));
+   });
+  });
+  const values=[];let bestOrder=null,best=Infinity;
+  function walk(order,remaining,work){
+   if(order.length===ids.length){
+    if(remaining.length!==1||states[remaining[0]][0]!==task.target)throw Error('Ratkaisu ei ole yksikäsitteinen.');
+    const h=states[remaining[0]][1];
+    if(kind==='skull'&&h!==task.wrongClueId||kind==='disappearance'&&h!==task.removedMarkerId||kind==='addition'&&h!==task.addedMarker.id)throw Error('Virheellinen erikoisretki.');
+    values.push(work);if(work<best){best=work;bestOrder=order.map(j=>ids[j])}return;
+   }
+   for(let j=0;j<ids.length;j++)if(!order.includes(j)){
+    let cost=0;for(const key of new Set(remaining.map(s=>keys[j][s])))cost+=costs[j].get(key);
+    if(kind!=='normal')cost+=.25*remaining.length;
+    walk([...order,j],remaining.filter(s=>truth[j][s]),work+cost);
+   }
+  }
+  walk([],states.map((_,i)=>i),0);
+  const good=values.filter(v=>v<=best*1.2+1e-9).length;
+  return best*(1+.25*(1-good/values.length));
+ }
+  function completeDifficulty(round){
+    for(const task of round.tasks)task.difficulty=task.kind==='normal'?normalDifficulty(round,task):scoreTask(round,task);
+    round.totalDifficulty=round.tasks.reduce((sum,t)=>sum+t.difficulty,0);
+    return round;
+  }
+  function finish(round,level){
+    if(!clueUsageValid(round.tasks))return null;
+    for(const t of round.tasks.slice(0,3))t.difficulty=normalDifficulty(round,t);
+    const score=round.tasks.slice(0,3).reduce((n,t)=>n+t.difficulty,0)/3;
+    if(level==='normal'&&score>=550||level==='medium'&&(score<550||score>=750)||level==='challenging'&&(score<750||round.tasks.slice(0,3).some(t=>t.difficulty<400)))return null;
+    return completeDifficulty({...round,level,difficulty:score});
   }
   const all=Array.from({length:120},(_,i)=>i);
   // Search all (added marker position, treasure position) pairs, not only treasures.
@@ -81,12 +164,16 @@ const Expeditions = (() => {
       }
     }return null;
   }
-  function generate(seed){
+  function* search(seed,level='normal',options={}){
+    if(!['normal','medium','challenging'].includes(level))throw Error('Unknown level');
     let state=seed>>>0;
     const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
     const pick=a=>a[Math.floor(random()*a.length)];
     const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-    for(let attempt=0;attempt<64;attempt++){
+    const maxAttempts=options.maxAttempts??2048;
+    for(let attempt=0;attempt<maxAttempts;attempt++){
+      yield;
+      if(attempt%16===0)options.progress?.(attempt);
       const slots=shuffle([...all]),landmarks=[],missing=pick(refs.filter(r=>!(r.shape===0&&r.color===1)&&!(r.shape===1&&r.color===0)));
       for(const s of [0,1,3])for(const color of [0,1]){if(s===missing.shape&&color===missing.color)continue;for(let k=0,n=random()<.55?2:1;k<n;k++)landmarks.push({s,color,id:slots.pop()});}
       if(landmarks.length===6)continue;
@@ -95,16 +182,17 @@ const Expeditions = (() => {
       const pool=catalog.filter(c=>!c.additionOnly&&sets[c.id-1].length>=5&&sets[c.id-1].length<=115);
       const tasks=[],used=new Set();
       const added=addition(board,used,random);if(!added)continue;used.add(added.target);
+      const allowed=(c,previous=tasks.at(-1),next=null)=>!previous?.clueIds.includes(c.id)&&!next?.clueIds.includes(c.id)&&tasks.reduce((n,t)=>n+Number(t.clueIds.includes(c.id)),Number(added.clueIds.includes(c.id)))<2;
       const intersect=(ids,c)=>ids.filter(i=>sets[c.id-1].includes(i));
-      for(const [level,count,required] of [[1,3,null],[1,4,null],[2,4,random()<.5?'difference':'sum']]){
+      for(const [tier,count,required] of (level!=='normal'?[[2,4,null],[2,4,null],[2,4,null]]:[[1,3,null],[1,4,null],[2,4,null]])){
         let found=null,budget=3500;
         for(const target of shuffle([...all])){
           if(used.has(target))continue;
-          const clues=shuffle(pool.filter(c=>c.tier<=level&&sets[c.id-1].includes(target))).sort((a,b)=>(b.rule.kind===required)-(a.rule.kind===required));
+          const clues=shuffle(pool.filter(c=>c.tier<=tier&&allowed(c)&&sets[c.id-1].includes(target))).sort((a,b)=>level==='challenging'?price(board,b.rule)-price(board,a.rule):(b.rule.kind===required)-(a.rule.kind===required));
           function search(chosen,remaining,start){
             if(--budget<0)return null;
             if(chosen.length===count){
-              if(remaining.length!==1||!chosen.some(c=>c.tier===level)||required&&!chosen.some(c=>c.rule.kind===required))return null;
+              if(remaining.length!==1||!chosen.some(c=>c.tier===tier)||required&&!chosen.some(c=>c.rule.kind===required))return null;
               if(chosen.some((_,skip)=>chosen.filter((_,j)=>j!==skip).reduce(intersect,all).length===1))return null;
               return chosen;
             }
@@ -120,13 +208,16 @@ const Expeditions = (() => {
         if(!found)break;tasks.push(found);used.add(found.target);
       }
       if(tasks.length!==3)continue;
+      // Reject the wrong difficulty before searching the expensive special trips.
+      const ordinary=tasks.map(t=>normalDifficulty(board,t)),mean=ordinary.reduce((sum,n)=>sum+n,0)/3;
+      if(level==='normal'&&mean>=550||level==='medium'&&(mean<550||mean>=750)||level==='challenging'&&(mean<750||ordinary.some(n=>n<400)))continue;
       let skull=null;
       for(let a=0;a<18000&&!skull;a++){
         const target=pick(all);if(used.has(target))continue;
-        const truth=pool.filter(c=>sets[c.id-1].includes(target)),chosen=[];
+        const truth=pool.filter(c=>allowed(c)&&sets[c.id-1].includes(target)),chosen=[];
         for(let k=0;k<4;k++){const eligible=truth.filter(c=>!chosen.some(x=>x.family===c.family)&&(!arithmetic(c)||!chosen.some(arithmetic)));const c=pick(eligible);if(c)chosen.push(c);}
         if(chosen.length!==4||chosen.reduce(intersect,all).length!==1)continue;
-        for(const wrong of shuffle(pool.filter(c=>!sets[c.id-1].includes(target)&&!chosen.some(x=>x.family===c.family)&&(!arithmetic(c)||!chosen.some(arithmetic))))){
+        for(const wrong of shuffle(pool.filter(c=>allowed(c)&&!sets[c.id-1].includes(target)&&!chosen.some(x=>x.family===c.family)&&(!arithmetic(c)||!chosen.some(arithmetic))))){
           const ids=[...chosen.map(c=>c.id),wrong.id];
           const solutions=all.filter(i=>ids.filter(id=>sets[id-1].includes(i)).length===4);
           if(solutions.length===1){skull={kind:'skull',target,count:5,clueIds:shuffle(ids),wrongClueId:wrong.id};break;}
@@ -142,7 +233,7 @@ const Expeditions = (() => {
       let removal=null;
       for(let a=0;a<25000&&!removal;a++){
         const r=pick(removals),target=pick(all);if(used.has(target)||target===r.id)continue;
-        const truth=pool.filter(c=>r.sets[c.id-1].includes(target));
+        const truth=pool.filter(c=>allowed(c,tasks.at(-1),added)&&r.sets[c.id-1].includes(target));
         const anchors=truth.filter(c=>!sets[c.id-1].includes(target));if(!anchors.length)continue;
         const chosen=[pick(anchors)],count=a%2?4:5;
         while(chosen.length<count){const eligible=truth.filter(c=>!chosen.some(x=>x.family===c.family)&&(!arithmetic(c)||!chosen.some(arithmetic)));const c=pick(eligible);if(!c)break;chosen.push(c);}
@@ -153,13 +244,25 @@ const Expeditions = (() => {
       }
       if(!removal)continue;
       tasks.push(removal);used.add(removal.target);
-      tasks.push(added);return {...board,seed,tasks,fallback:false};
+      tasks.push(added);const result=finish({...board,seed,tasks,attempts:attempt+1,fallback:false},level);if(result)return result;
     }
-    // The validated bank guarantees a complete round even on an unsuccessful bounded search.
-    if(D.additionBank?.length){const matching=D.additionBank.filter(r=>r.tasks[5].clueIds.every(id=>id<=60));if(!matching.length)throw Error('Alkuperäisillä vihjeillä ei löytynyt Hukkareissua');const saved=pick(matching);return {...JSON.parse(JSON.stringify(saved)),seed,fallback:true};}
-    throw Error('Lisäysretkeä ei löytynyt. Arvo uusi kierros.');
+    throw Error('Tuoretta kierrosta ei löytynyt. Arvo uudelleen.');
+  }
+  function generate(seed,level='normal',options={}){
+    const iterator=search(seed,level,options);let step;
+    do{step=iterator.next();}while(!step.done);
+    return step.value;
+  }
+  async function generateAsync(seed,level='normal',options={}){
+    const iterator=search(seed,level,options);
+    while(true){
+      const until=performance.now()+12;let step;
+      do{step=iterator.next();if(step.done)return step.value;}while(performance.now()<until);
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
   }
   function validate(round){
+    if(!clueUsageValid(round.tasks))throw Error('Invalid clue repetition');
     if(round.terrain.length!==120||round.tasks.length!==6)throw Error('Virheellinen kierros');
     const solve=(board,ids)=>{const tests=ids.map(id=>G.compile(board,catalog[id-1].rule));return all.filter(i=>tests.every(f=>f(i)));};
     for(const task of round.tasks){
@@ -190,6 +293,6 @@ const Expeditions = (() => {
       }
     }return true;
   }
-  return {generate,validate,catalog};
+  return {generate,generateAsync,validate,catalog,clueUsageValid,normalDifficulty,scoreTask};
 })();
 if(typeof module!=='undefined')module.exports=Expeditions;

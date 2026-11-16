@@ -1,7 +1,7 @@
-const CACHE = 'aarrejahti-v1';
-const ASSETS = ['./', './index.html', './style.css?v=rounds18', './engine.js?v=rounds18', './game-data.js?v=rounds18', './rounds.js?v=rounds18', './game.js?v=rounds18', './round-worker.js?v=rounds18', './pwa.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon.png'];
+const CACHE = 'aarrejahti-v14';
+const ASSETS = ['./', './index.html', './style.css?v=rounds31', './engine.js?v=rounds31', './game-data.js?v=rounds31', './rounds.js?v=rounds31', './game.js?v=rounds31', './round-worker.js?v=rounds31', './pwa.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon.png'];
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('aarrejahti-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));

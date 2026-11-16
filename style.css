@@ -57,3 +57,34 @@ body{padding-left:var(--safe-left);padding-right:var(--safe-right);padding-top:v
 
 
 #progress .step{padding:0;min-width:0;cursor:pointer;font-family:inherit;touch-action:manipulation}#progress .step:hover{border-color:#244e42}
+
+.terrain-stack{display:inline-flex;flex-direction:column;vertical-align:middle;gap:2px}.terrain-stack svg{display:block}.level-choice{display:flex;align-items:center;gap:4px;border:0;margin:0;padding:0;min-width:0}.level-choice legend{float:left;margin-right:8px;font-size:13px;line-height:44px}.level-choice label{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 10px;border:1px solid #c9d0c2;border-radius:9px;background:#fcfbf6;cursor:pointer;font-size:13px}.level-choice label:has(input:checked){background:#e2e8dc;border-color:#244e42;font-weight:700}.level-choice input{accent-color:#244e42;margin:0}.level-choice:disabled label{opacity:.45;cursor:default}.setup{flex-wrap:wrap;justify-content:flex-end}
+
+.panel-top{justify-content:flex-end}
+
+/* Activity indicator centered over the board. */
+.map-wrap{position:relative}
+#generating{display:none}
+.loading #generating{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:rgba(243,241,232,.35);pointer-events:all}
+.generation-spinner{position:relative;width:100px;height:100px;filter:drop-shadow(0 1px 2px #fff)}
+.generation-spinner span{position:absolute;left:45px;top:5px;width:10px;height:27px;border-radius:6px;background:#34433e;transform-origin:5px 45px;transform:rotate(calc(var(--i)*30deg));}
+
+
+/* Fit landscape iPad, including Safari chrome and feedback messages. */
+@media(min-width:900px) and (orientation:landscape) and (max-height:900px){
+ .clue,.short-viewport .clue{padding:4px 8px;margin:3px 0;min-height:0}
+ .clue small,.short-viewport .clue small{display:block;font-size:9px;line-height:1.1}
+ .formula,.short-viewport .formula{font-size:18px;line-height:1.1;margin-top:2px}
+ .clue p,.short-viewport .clue p{font-size:10px;line-height:1.15;margin-top:2px}
+ #feedback,.short-viewport #feedback{font-size:10px;line-height:1.15;margin-top:4px}
+ .actions,.short-viewport .actions{margin-top:4px}
+}
+
+/* WebKit lays out a fieldset legend outside its flex contents. */
+.level-choice{position:relative}
+.level-choice legend{position:absolute;float:none;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.level-choice::before{content:"Taso";font-size:13px;margin-right:8px;align-self:center}
+
+.level-slider{width:240px;align-self:center}.level-slider>label{display:flex;justify-content:space-between;font-size:11px;line-height:1.1}.level-slider output{font-weight:700}#level{display:block;width:100%;margin:0;height:26px;accent-color:#244e42;cursor:pointer;touch-action:pan-y}.level-ticks{display:flex;justify-content:space-between;font-size:9px;line-height:1.1}.level-slider:has(input:disabled){opacity:.45}
+
+.level-slider>label{font-size:10px;line-height:1}#level{height:24px}.level-ticks{line-height:1}

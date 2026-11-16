@@ -1,5 +1,20 @@
 (() => {
   const $=id=>document.getElementById(id);
+  const spinnerBars=[...document.querySelectorAll('.generation-spinner span')];
+  const spinnerShades=['#17251f','#34413b','#4e5953','#67716b','#808982','#969e97','#aab1aa','#bdc3bc','#cbd0c9','#d6dad3','#e0e3dc','#e9ebe4'];
+  function paintSpinner(){
+    if(!document.body.classList.contains('loading'))return;
+    const head=Math.floor(performance.now()/100)%12;
+    spinnerBars.forEach((bar,i)=>bar.style.setProperty('background-color',spinnerShades[(head-i+12)%12],'important'));
+  }
+  setInterval(paintSpinner,100);
+  const levelIds=['normal','medium','challenging'],levelNames=['Tavallinen','Keskitaso','Haastava'];
+  function showLevel(id){
+    if(id)$('level').value=levelIds.indexOf(id);
+    const name=levelNames[+$('level').value];
+    $('level-name').textContent=name;$('level').setAttribute('aria-valuetext',name);
+  }
+  $('level').oninput=()=>showLevel();
   // Safari's bars and visual viewport can change without a full window resize.
   function fitViewport(){
     const viewport=window.visualViewport;
@@ -88,7 +103,7 @@
     phase='ready';selected=null;lastSelected=null;rejectedCell=null;mutedClue=null;mutedMarker=null;addedCell=null;placing='marker';elapsed=0;wrong=0;
     document.body.classList.add('awaiting-start');document.body.classList.remove('harha-running','ended');
     $('timer').textContent='00:00';$('task-title').textContent=`${titles[task().kind]} ${index+1} / 6`;
-    $('round-label').textContent=`KIERROS ${roundNumber}`;$('code').textContent=`F02 · ${round.seed.toString(36).toUpperCase()}`;
+    $('round-label').textContent=`KIERROS ${roundNumber} · ${levelNames[levelIds.indexOf(round.level)].toUpperCase()}`;$('code').textContent=`${Math.round(task().difficulty)} · ${Math.round(round.totalDifficulty)}`;
     $('task-rule').textContent=prompts[task().kind];
     $('feedback').textContent='';
     $('state').textContent='';$('start').hidden=false;$('start').disabled=false;$('next').hidden=true;$('reveal').disabled=true;$('reveal').hidden=true;
@@ -139,27 +154,44 @@
     else{wrong++;rejectedCell=selected!==task().target?selected:null;draw();$('feedback').textContent=task().kind==='addition'?'Väärä vastaus. Tarkista arkku ja lisätty kuvio.':`Vastaus ei ole oikein. Tarkistakaa aarteen ruutu${task().kind==='normal'?'':task().kind==='skull'?' ja vääräksi merkitty vihje':task().kind==='addition'?' ja lisätyn kuvion paikka':' ja poistettavaksi merkitty kuvio'}. Jatkakaa etsintää!`;}
   }
   async function generate(seed){
-    if(typeof Worker==='undefined'||location.protocol==='file:')return new Promise(resolve=>setTimeout(()=>resolve(Expeditions.generate(seed)),25));
-    return new Promise(resolve=>{
-      const worker=new Worker('round-worker.js?v=rounds18');let settled=false;
-      const done=value=>{if(settled)return;settled=true;clearTimeout(timeout);worker.terminate();resolve(value);};
-      const fallback=()=>done(Expeditions.generate(seed));
-      const timeout=setTimeout(fallback,10000);
-      worker.onmessage=e=>e.data.round?done(e.data.round):fallback();worker.onerror=fallback;worker.postMessage({seed});
+    const level=levelIds[+$('level').value];
+    if(typeof Worker==='undefined'||location.protocol==='file:')return Expeditions.generateAsync(seed,level);
+    return new Promise((resolve,reject)=>{
+      const workers=[],attempts=[],count=Math.min(4,Math.max(1,(navigator.hardwareConcurrency||2)-1));
+      let settled=false,failed=0;
+      const cleanup=()=>{clearTimeout(timeout);workers.forEach(worker=>worker.terminate());};
+      const timeout=setTimeout(()=>{if(settled)return;settled=true;cleanup();reject(Error('Arvonta kesti liian pitkään. Kokeile uudelleen.'));},180000);
+      const fail=error=>{if(settled)return;if(++failed===count){settled=true;cleanup();reject(Error(error));}};
+      for(let i=0;i<count;i++){
+        const worker=new Worker('round-worker.js?v=rounds31');workers.push(worker);
+        worker.onmessage=e=>{
+          if(settled)return;
+          if(e.data.round){settled=true;cleanup();resolve(e.data.round);}
+          else if(e.data.error){worker.terminate();fail(e.data.error);}
+          else if(Number.isFinite(e.data.attempts)){
+            attempts[i]=e.data.attempts;
+            const total=attempts.reduce((sum,n)=>sum+(n||0),0);
+            if(total>=64)$('feedback').textContent=`Etsitään uutta sopivaa karttaa… ${total} asetelmaa kokeiltu.`;
+          }
+        };
+        worker.onerror=()=>{worker.terminate();fail('Arvonnan taustalaskenta epäonnistui.');};
+        worker.postMessage({seed:(seed+Math.imul(i,2654435761))>>>0,level});
+      }
     });
   }
+
   async function fresh(){
     const token=++request,previous=round?JSON.stringify(round.landmarks):null;phase='loading';
     $('addition-controls').hidden=true;
     document.body.classList.add('loading','awaiting-start');document.body.classList.remove('harha-running');
-    $('new').disabled=true;$('start').disabled=true;$('next').hidden=true;$('reveal').disabled=true;$('reveal').hidden=true;
+    $('level').disabled=true;$('new').disabled=true;$('start').disabled=true;$('next').hidden=true;$('reveal').disabled=true;$('reveal').hidden=true;
     $('feedback').textContent='Arvotaan uutta asetelmaa ja kuutta yksikäsitteistä tehtävää…';
     try{
       let seed=crypto.getRandomValues(new Uint32Array(1))[0],next=await generate(seed);
       if(JSON.stringify(next.landmarks)===previous)next=await generate((seed+1)>>>0);
       if(token!==request)return;Expeditions.validate(next);round=next;index=0;roundNumber++;totalWrong=0;completed.clear();
-      document.body.classList.remove('loading');prepare();
-    }catch(error){if(token!==request)return;document.body.classList.remove('loading');$('new').disabled=false;$('feedback').textContent=`Kierroksen luonti ei onnistunut: ${error.message}. Paina Uusi kierros.`;}
+      $('level').disabled=false;document.body.classList.remove('loading');prepare();
+    }catch(error){if(token!==request)return;$('level').disabled=false;document.body.classList.remove('loading');$('new').disabled=false;$('feedback').textContent=`Kierroksen luonti ei onnistunut: ${error.message}. Paina Uusi kierros.`;}
   }
   $('start').onclick=()=>{
     if(phase!=='ready')return;phase='running';started=Date.now();document.body.classList.remove('awaiting-start');$('start').disabled=true;$('start').hidden=true;
@@ -170,12 +202,18 @@
   $('place-chest').onclick=()=>{placing='treasure';additionControls();draw();};
   $('next').onclick=()=>{if(phase!=='ended')return;if(index===5)fresh();else{index++;prepare();}};
   $('new').onclick=async()=>{if(asking)return;if(phase==='running'&&!await ask('Aloitetaanko uusi kierros? Nykyinen kierros keskeytyy.','Aloita uusi'))return;fresh();};
+  $('level').onchange=async()=>{
+    showLevel();
+    if(asking){showLevel(round?.level||'normal');return;}
+    if(phase==='running'&&!await ask('Vaihdetaanko tasoa ja aloitetaan uusi kierros?','Vaihda taso')){showLevel(round.level);return;}
+    fresh();
+  };
   $('reveal').onclick=async()=>{if(phase!=='running'||asking)return;if(await ask('Paljastetaanko ratkaisu ja päätetäänkö tämä retki?','Paljasta')&&phase==='running')end(answerText());};
   $('explain').onchange=()=>document.body.classList.toggle('no-explain',!$('explain').checked);
   $('help').onclick=()=>$('instructions').showModal();$('close-help').onclick=()=>$('instructions').close();
   $('instructions').onclick=e=>{if(e.target===$('instructions')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}};
   $('terrain-guide').innerHTML=Game.terrains.map((name,i)=>`<span>${Game.terrainSymbol(i)} ${name}</span>`).join('');
-  $('arithmetic-guide').innerHTML=['difference','sum'].map(kind=>`<div class="help-arithmetic"><div class="formula">${Game.describe({kind,ref:{kind:'markers',shape:0,color:0},other:{kind:'markers',shape:3,color:1},n:kind==='difference'?1:6}).html}</div></div>`).join('');
+  $('arithmetic-guide').innerHTML=['equal','closer','difference'].map(kind=>`<div class="help-arithmetic"><div class="formula">${Game.describe({kind,ref:{kind:'markers',shape:0,color:0},other:{kind:'markers',shape:3,color:1},n:kind==='difference'?1:6}).html}</div></div>`).join('');
   setInterval(()=>{const t=Math.floor((phase==='running'?Date.now()-started:elapsed)/1000);$('timer').textContent=`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;},250);
   // Read-only snapshot for independent integration checks; no answer appears in the visible UI.
   window.Aarrejahti={snapshot:()=>({round:structuredClone(round),index,phase,selected,lastSelected,mutedClue,mutedMarker,addedCell,placing,wrong})};

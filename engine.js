@@ -74,11 +74,11 @@ const Game = (() => {
       case 'distance':return {html:`↔ ${h} ${{le:'≤',gt:'>',eq:'='}[r.op]} ${r.n}`,text:r.ref.kind==='markers'?`${distanceText} on ${r.op==='le'?'enintään':r.op==='gt'?'yli':'tasan'} ${r.n} askelta.`:`${distanceText} on ${r.op==='le'?'enintään':r.op==='gt'?'yli':'tasan'} ${stepGenitive[r.n]||r.n} askeleen päässä.`};
       case 'range':return {html:`${r.lo} ≤ ↔ ${h} ≤ ${r.hi}`,text:r.ref.kind==='markers'?`${distanceText} on ${r.lo}–${r.hi} askelta.`:`${distanceText} on ${r.lo}–${r.hi} askeleen päässä.`};
       case 'neighbor':return {html:`${neighborhood} ${terrainSymbol(r.t)} ${r.op==='exists'?'≥ 1':'= '+r.n}`,text:r.op==='exists'?`Ainakin yksi viereinen ruutu on maastoa ${terrains[r.t].toLowerCase()}.`:`Viereisistä ruuduista tasan ${r.n} on maastoa ${terrains[r.t].toLowerCase()}.`};
-      case 'boundary':return {html:`${neighborhood} ${terrainSymbol(r.a)} + ${terrainSymbol(r.b)}`,text:`Viereisissä ruuduissa on sekä maastoa ${terrains[r.a].toLowerCase()} että ${terrains[r.b].toLowerCase()}.`};
+      case 'boundary':return {html:`${neighborhood} <span class="terrain-stack">${terrainSymbol(r.a)}${terrainSymbol(r.b)}</span> ≥ 1`,text:`Viereisissä ruuduissa on sekä maastoa ${terrains[r.a].toLowerCase()} että ${terrains[r.b].toLowerCase()}.`};
       case 'diversity':return {html:`${neighborhood} <span class="formula-word">värit</span> = ${r.n}`,text:`Viereisissä ruuduissa esiintyy tasan ${r.n} eri maastotyyppiä.`};
       case 'nearby':return {html:`#(${h}, ↔ ≤ ${r.radius}) = ${r.n}`,text:nearbyText(r)};
       case 'equal':return {html:`↔ ${h} = ↔ ${o}`,text:`Aarre on yhtä kaukana kaikista näistä kuvioista: ${n} ja ${m}.`};
-      case 'closer':return {html:`↔ ${h} < ↔ ${o}`,text:`Jokainen kuvio (${n}) on lähempänä kuin mikään kuvio (${m}).`};
+      case 'closer':return {html:`↔ ${h} < ↔ ${o}`,text:`Jokainen ${n} on lähempänä kuin mikään ${m}.`};
       case 'difference':return {html:`↔ ${h} + ${r.n} = ↔ ${o}`,text:`Jokaiseen ${markerTo(r.other)} on ${r.n===1?'yksi askel':r.n===2?'kaksi askelta':r.n===3?'kolme askelta':r.n+' askelta'} enemmän kuin jokaiseen ${markerTo(r.ref)}.`};
       case 'sum':return {html:`↔ ${h} + ↔ ${o} = ${r.n}`,text:`Etäisyys ${markerTo(r.ref)} ja ${markerTo(r.other)} on yhteensä ${r.n} askelta. Ehto koskee jokaista kuvioparia.`};
       case 'path':return {html:`${h} — ✧ — ${o}`,text:`Aarre on jollakin lyhimmällä reitillä kuvioiden (${n}) ja (${m}) välillä. Ehto koskee jokaista ryhmien välistä paria.`};
