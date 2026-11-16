@@ -99,8 +99,9 @@ const Expeditions = (() => {
     return round;
   }
   function finish(round,level){
-    if(!clueUsageValid(round.tasks))return null;
     for(const t of round.tasks.slice(0,3))t.difficulty=normalDifficulty(round,t);
+    round.tasks=[...round.tasks.slice(0,3).sort((a,b)=>a.difficulty-b.difficulty),...round.tasks.slice(3)];
+    if(!clueUsageValid(round.tasks))return null;
     const score=round.tasks.slice(0,3).reduce((n,t)=>n+t.difficulty,0)/3;
     if(level==='normal'&&score>=550||level==='medium'&&(score<550||score>=750)||level==='challenging'&&(score<750||round.tasks.slice(0,3).some(t=>t.difficulty<400)))return null;
     return completeDifficulty({...round,level,difficulty:score});
@@ -208,6 +209,9 @@ const Expeditions = (() => {
         if(!found)break;tasks.push(found);used.add(found.target);
       }
       if(tasks.length!==3)continue;
+      for(const task of tasks)task.difficulty=normalDifficulty(board,task);
+      tasks.sort((a,b)=>a.difficulty-b.difficulty);
+      if(!clueUsageValid(tasks))continue;
       // Reject the wrong difficulty before searching the expensive special trips.
       const ordinary=tasks.map(t=>normalDifficulty(board,t)),mean=ordinary.reduce((sum,n)=>sum+n,0)/3;
       if(level==='normal'&&mean>=550||level==='medium'&&(mean<550||mean>=750)||level==='challenging'&&(mean<750||ordinary.some(n=>n<400)))continue;

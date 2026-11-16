@@ -1,5 +1,5 @@
-const CACHE = 'aarrejahti-v14';
-const ASSETS = ['./', './index.html', './style.css?v=rounds31', './engine.js?v=rounds31', './game-data.js?v=rounds31', './rounds.js?v=rounds31', './game.js?v=rounds31', './round-worker.js?v=rounds31', './pwa.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon.png'];
+const CACHE = 'aarrejahti-v15';
+const ASSETS = ['./', './index.html', './style.css?v=rounds32', './engine.js?v=rounds32', './game-data.js?v=rounds32', './rounds.js?v=rounds32', './game.js?v=rounds32', './round-worker.js?v=rounds32', './pwa.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });

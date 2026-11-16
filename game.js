@@ -163,7 +163,7 @@
       const timeout=setTimeout(()=>{if(settled)return;settled=true;cleanup();reject(Error('Arvonta kesti liian pitkään. Kokeile uudelleen.'));},180000);
       const fail=error=>{if(settled)return;if(++failed===count){settled=true;cleanup();reject(Error(error));}};
       for(let i=0;i<count;i++){
-        const worker=new Worker('round-worker.js?v=rounds31');workers.push(worker);
+        const worker=new Worker('round-worker.js?v=rounds32');workers.push(worker);
         worker.onmessage=e=>{
           if(settled)return;
           if(e.data.round){settled=true;cleanup();resolve(e.data.round);}

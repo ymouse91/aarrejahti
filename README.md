@@ -19,3 +19,5 @@ Kolmiportainen liukusäädin: Tavallinen (kolmen tavallisen retken D1-keskiarvo 
 Aina tuore arvonta, enintään neljä rinnakkaista taustatyöntekijää. Tiedostosta avattu peli jaksottaa laskennan. Laudan keskellä näkyy sävyiltään kiertävä kehrä. Yläkulmassa näytetään retken pisteet ja koko kortin yhteispisteet. iPadin vaaka-asettelu ja lyhyemmät selitykset on tarkistettu WebKitillä. PWA-välimuisti on `aarrejahti-v14`; päivitys aktivoituu automaattisesti.
 
 Testit: `node tests/rounds.cjs`, `node tests/browser.cjs`. Selaintestit käyttävät Playwrightia paikallisesta codex-tools-asennuksesta. Haastavan haku voi kestää muita tasoja kauemmin.
+
+Retket 1–3 järjestetään D1-vaikeuden mukaan helpoimmasta vaikeimpaan ennen kortin näyttämistä. Toistorajat tarkistetaan lopullisessa järjestyksessä. Tasosäädin näyttää vain valitun tason nimen ja mahtuu iPhonessa muiden toimintojen rinnalle. PWA-välimuisti: `aarrejahti-v15`.
