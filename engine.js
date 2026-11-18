@@ -71,7 +71,12 @@ const Game = (() => {
     const distanceText=r.ref?.kind==='markers'?`Jokaiseen ${r.ref.color===null?'mustaan tai valkoiseen':r.ref.color?'valkoiseen':'mustaan'} ${targetForms[r.ref.shape]}`:n.charAt(0).toUpperCase()+n.slice(1);
     switch(r.kind){
       case 'terrain':return {html:`${r.negate?'∉':'∈'} ${terrainSymbol(r.t)}`,text:`Aarre ${r.negate?'ei ole':'on'} maastossa ${terrains[r.t].toLowerCase()}.`};
-      case 'distance':return {html:`↔ ${h} ${{le:'≤',gt:'>',eq:'='}[r.op]} ${r.n}`,text:r.ref.kind==='markers'?`${distanceText} on ${r.op==='le'?'enintään':r.op==='gt'?'yli':'tasan'} ${r.n} askelta.`:`${distanceText} on ${r.op==='le'?'enintään':r.op==='gt'?'yli':'tasan'} ${stepGenitive[r.n]||r.n} askeleen päässä.`};
+      case 'distance':
+        if(r.op==='gt'&&r.n===1){
+          const target=r.ref.kind==='markers'?distanceText:r.ref.kind==='edge'?'Lähimpään reunaruutuun':`Lähimpään ${['vesiruutuun','metsäruutuun','hiekkaruutuun','kallioruutuun'][r.ref.t]}`;
+          return {html:`↔ ${h} ≥ 2`,text:`${target} on kaksi askelta tai enemmän.`};
+        }
+        return {html:`↔ ${h} ${{le:'≤',gt:'>',eq:'='}[r.op]} ${r.n}`,text:r.ref.kind==='markers'?`${distanceText} on ${r.op==='le'?'enintään':r.op==='gt'?'yli':'tasan'} ${r.n} askelta.`:`${distanceText} on ${r.op==='le'?'enintään':r.op==='gt'?'yli':'tasan'} ${stepGenitive[r.n]||r.n} askeleen päässä.`};
       case 'range':return {html:`${r.lo} ≤ ↔ ${h} ≤ ${r.hi}`,text:r.ref.kind==='markers'?`${distanceText} on ${r.lo}–${r.hi} askelta.`:`${distanceText} on ${r.lo}–${r.hi} askeleen päässä.`};
       case 'neighbor':return {html:`${neighborhood} ${terrainSymbol(r.t)} ${r.op==='exists'?'≥ 1':'= '+r.n}`,text:r.op==='exists'?`Ainakin yksi viereinen ruutu on maastoa ${terrains[r.t].toLowerCase()}.`:`Viereisistä ruuduista tasan ${r.n} on maastoa ${terrains[r.t].toLowerCase()}.`};
       case 'boundary':return {html:`${neighborhood} <span class="terrain-stack">${terrainSymbol(r.a)}${terrainSymbol(r.b)}</span> ≥ 1`,text:`Viereisissä ruuduissa on sekä maastoa ${terrains[r.a].toLowerCase()} että ${terrains[r.b].toLowerCase()}.`};

@@ -3,7 +3,7 @@ const Expeditions = (() => {
   const G=typeof module!=='undefined'?require('./engine.js'):Game;
   const D=typeof module!=='undefined'?require('./game-data.js'):ExpeditionData;
   // Original physical clues stay at 1–60; the new pair variations follow.
-  const catalog=D.catalog.map(c=>({...c}));
+  const catalog=D.catalog.map(c=>({...c,...(c.rule.kind==='distance'&&c.rule.op==='gt'&&c.rule.n===1?{text:G.describe(c.rule).text}:{})}));
   const refs=[0,1,3].flatMap(shape=>[0,1].map(color=>({kind:'markers',shape,color})));
   const arithmetic=c=>c.rule.kind==='difference';
   for(let a=0;a<refs.length;a++)for(let b=0;b<refs.length;b++){
