@@ -2,6 +2,12 @@
  const $=id=>document.getElementById(id),STORE='aarrejahti-card-generator-v1';
  const skull='<svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1C5 1 1 5 1 12c0 5 3 7 5 8v7h4v-5h4v5h4v-7c3-2 5-4 5-8C23 5 19 1 12 1ZM7 10a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm10 0a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" fill-rule="evenodd"/></svg>';
  const coord=id=>String.fromCharCode(65+id%12)+(1+Math.floor(id/12));
+ const levelButtons=Object.entries(CardLevels.rules).map(([name,rule])=>{
+  const button=document.createElement('button');
+  button.id='level-'+name;button.type='button';button.textContent=rule.label;
+  document.querySelector('.level-switch').append(button);
+  return [name,button];
+ });
  const labels=['kolmio','neliö','risti','ympyrä'];
  let card=null,index=0,worker=null,timer=null,level='normal',pendingLevel=null;
  const status=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error)};
@@ -11,9 +17,37 @@
   return `<svg viewBox="0 0 30 30" aria-hidden="true">${element}</svg>`;
  }
  function save(){try{localStorage.setItem(STORE,JSON.stringify({card,index}))}catch{}}
- function showLevel(){for(const name of ['normal','challenging'])$('level-'+name).setAttribute('aria-pressed',String(name===level))}
+ function showLevel(){for(const [name,button] of levelButtons)button.setAttribute('aria-pressed',String(name===level))}
+ const clueBubble=$('clue-bubble');
+ let activeClue=null;
+ function closeClue(){
+  if(!activeClue)return;
+  activeClue.setAttribute('aria-expanded','false');
+  activeClue.removeAttribute('aria-describedby');
+  activeClue=null;
+  clueBubble.hidden=true;
+ }
+ function showClue(button,clue){
+  const wasOpen=activeClue===button;
+  closeClue();
+  if(wasOpen||timer!==null)return;
+  activeClue=button;
+  clueBubble.textContent=clue.text;
+  clueBubble.style.setProperty('--clue-anchor',button.offsetLeft+button.offsetWidth/2+'px');
+  clueBubble.hidden=false;
+  button.setAttribute('aria-expanded','true');
+  button.setAttribute('aria-describedby','clue-bubble');
+ }
+ document.addEventListener('pointerdown',event=>{
+  if(!$('clues').contains(event.target))closeClue();
+ });
+ document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&activeClue)closeClue();
+ });
+ window.addEventListener('resize',closeClue);
  function render(){
-  level=card.level;showLevel();
+  closeClue();
+  level=CardLevels.classify(card.score);showLevel();
   $('card-name').textContent=card.name;
   $('markers').replaceChildren();
   for(const s of [0,1,3])for(const color of [0,1]){
@@ -34,37 +68,67 @@
   $('trip-title').textContent=index<4?`Retki ${index+1}`:index===5?'Pääkalloretki':'Harharetki';
   $('trip-score').textContent=`${Math.round(t.difficulty.score)} p.`;
   $('trip-rule').textContent=index<4?'Etsi aarre.':index===5?'Etsi aarre ja väärä vihje.':'Etsi aarre ja poistettava kuvio.';
-  $('clues').replaceChildren();
-  for(const id of t.clueIds){const c=document.createElement('span');c.className='clue-number';c.textContent=id;c.setAttribute('aria-label',`Vihjekortti ${id}`);$('clues').append(c)}
+  $('clues').replaceChildren(clueBubble);
+  for(const id of t.clueIds){
+   const clue=CardData.catalog[id-1],button=document.createElement('button');
+   button.type='button';
+   button.className='clue-number';
+   button.textContent=id;
+   button.setAttribute('aria-label',`Vihjekortti ${id}`);
+   button.setAttribute('aria-controls','clue-bubble');
+   button.setAttribute('aria-expanded','false');
+   button.onclick=()=>showClue(button,clue);
+   $('clues').append(button);
+  }
   $('trip-count').textContent=`Vihjekortit ${t.clueIds.length} kpl.`;
   $('next').disabled=index===5;$('answer').disabled=false;
  }
- function select(i){if(!card||worker)return;index=i;render();save()}
- function finish(){clearTimeout(timer);worker?.terminate();worker=null;document.body.classList.remove('loading');$('generate').disabled=false;$('next').disabled=!card||index===5;$('answer').disabled=!card;for(const name of ['normal','challenging'])$('level-'+name).disabled=false}
- function generate(seed){
-  if(worker)return;
+ function select(i){if(!card||timer!==null)return;index=i;render();save()}
+ function finish(){clearTimeout(timer);timer=null;worker?.terminate();worker=null;document.body.classList.remove('loading');$('generate').disabled=false;$('next').disabled=!card||index===5;$('answer').disabled=!card;for(const [name,button] of levelButtons)button.disabled=false}
+ function generate(seed,revision=CardLevels.version){
+  if(timer!==null)return;
+  closeClue();
   seed=seed??crypto.getRandomValues(new Uint32Array(1))[0];
   document.body.classList.add('loading');$('generate').disabled=true;$('next').disabled=true;$('answer').disabled=true;
-  showLevel();for(const name of ['normal','challenging'])$('level-'+name).disabled=true;
+  showLevel();for(const [name,button] of levelButtons)button.disabled=true;
   document.querySelectorAll('#trips button').forEach(b=>b.disabled=true);
   status('Arvotaan uutta korttia…');
-  try{worker=new Worker('worker.js')}catch{finish();status('Avaa sovellus verkkopalvelimelta. Käynnistä paikallisesti Avaa_generaattori.cmd.',true);if(card)render();return}
-  timer=setTimeout(()=>{finish();if(card)render();status('Arvonta kesti liian kauan. Kokeile uudelleen.',true)},level==='challenging'?90000:45000);
-  worker.onmessage=({data})=>{
+  timer=setTimeout(()=>{finish();if(card)render();status('Arvonta kesti liian kauan. Kokeile uudelleen.',true)},level==='hard'?90000:45000);
+  function onMessage({data}){
    if(data.status){status(data.status);return}
    finish();
    if(data.error){if(card)render();status(data.error,true);return}
    card=data.card;index=0;render();save();
-   const url=new URL(location.href);url.searchParams.set('kortti',card.seed);url.searchParams.set('taso',card.level);history.replaceState(null,'',url);
+   const url=new URL(location.href);url.searchParams.set('kortti',card.seed);url.searchParams.set('taso',card.level);url.searchParams.set('versio',card.levelRules);history.replaceState(null,'',url);
    status('');
   };
-  worker.onerror=()=>{finish();if(card)render();status('Arvonta ei käynnistynyt. Tarkista yhteys ja yritä uudelleen.',true)};
-  worker.postMessage({seed,level});
+  function runLocally(){
+   // Some Safari versions cannot load dedicated workers from the offline cache.
+   worker?.terminate();
+   worker=null;
+   const activeTimer=timer;
+   const steps=CardGenerator.generateSteps(seed,()=>status('Etsitään sopivaa asetelmaa…'),{level,revision});
+   function step(){
+    if(activeTimer!==timer)return;
+    try{
+     const result=steps.next();
+     if(result.done)onMessage({data:{card:result.value}});
+     else setTimeout(step,0);
+    }catch(error){onMessage({data:{error:error.message||'Arvonta epäonnistui.'}})}
+   }
+   step();
+  }
+  try{
+   worker=new Worker('worker.js');
+   worker.onmessage=onMessage;
+   worker.onerror=runLocally;
+   worker.postMessage({seed,level,revision});
+  }catch{runLocally()}
  }
  $('generate').onclick=()=>{pendingLevel=null;$('replace-text').textContent='Nykyinen kuvioasetelma ja kaikki kuusi retkeä korvataan.';if(card)$('replace-dialog').showModal();else generate()};
  $('confirm-generate').onclick=()=>{if(pendingLevel)level=pendingLevel;pendingLevel=null;$('replace-dialog').close();generate()};
- for(const name of ['normal','challenging'])$('level-'+name).onclick=()=>{
-  if(worker||level===name)return;
+ for(const [name,button] of levelButtons)button.onclick=()=>{
+  if(timer!==null||level===name)return;
   if(!card){level=name;showLevel();generate();return}
   pendingLevel=name;$('replace-text').textContent=`Vaihdetaan tasolle ${CardLevels.rules[name].label} ja arvotaan uusi kortti. Nykyinen kuvioasetelma ja kaikki kuusi retkeä korvataan.`;$('replace-dialog').showModal();
  };
@@ -80,11 +144,25 @@
   if(t.kind==='disappearance')line('POISTETTAVA KUVIO · RATKAISUKORTIN KOODI',t.removeKey);
   $('answer-dialog').showModal();
  };
- const params=new URL(location.href).searchParams,requested=params.get('kortti'),requestedLevel=CardLevels.rules[params.get('taso')]?params.get('taso'):null;
+ const params=new URL(location.href).searchParams;
+ const requested=params.get('kortti'),levelParam=params.get('taso');
+ const seed=requested&&/^\d{1,10}$/.test(requested)?Number(requested)>>>0:undefined;
+ const legacy=seed!==undefined&&(params.get('versio')==='L1'||(!params.has('versio')&&(!levelParam||Object.hasOwn(CardLevels.legacyRules,levelParam))));
+ const revision=legacy?'L1':CardLevels.version;
+ const requestedLevel=Object.hasOwn(legacy?CardLevels.legacyRules:CardLevels.rules,levelParam)?levelParam:null;
  level=requestedLevel||'normal';
- try{const saved=JSON.parse(localStorage.getItem(STORE));if(saved?.card?.model==='D1'&&saved.card.clueRules==='R2'&&saved.card.levelRules===CardLevels.version&&CardLevels.accepts(saved.card,saved.card.level)&&saved.card.answerScheme==='314160'&&saved.card.landmarks.length>=6){card=saved.card;index=Math.min(5,Math.max(0,Number(saved.index)||0));if(!requestedLevel)level=card.level}}catch{}
+ try{
+  const saved=JSON.parse(localStorage.getItem(STORE)),stored=saved?.card;
+  if(stored?.model==='D1'&&stored.clueRules==='R2'&&['L1',CardLevels.version].includes(stored.levelRules)&&
+    CardLevels.accepts(stored,stored.level,stored.levelRules)&&stored.answerScheme==='314160'&&stored.landmarks.length>=6){
+   card=stored;
+   index=Math.min(5,Math.max(0,Number(saved.index)||0));
+  }
+ }catch{}
  // Keep an existing card and selected expedition when migrating the old last-two order.
  if(card){const selected=card.tasks[index];card.tasks=[...card.tasks.filter(t=>!t.kind),card.tasks.find(t=>t.kind==='disappearance'),card.tasks.find(t=>t.kind==='skull')].map((t,i)=>({...t,id:i+1}));index=card.tasks.findIndex(t=>t.target===selected.target&&t.kind===selected.kind)}
- if(card&&(!requested||String(card.seed)===requested)&&(!requestedLevel||card.level===requestedLevel)){render();save();status('')}else generate(requested&&/^\d{1,10}$/.test(requested)?Number(requested)>>>0:undefined);
+ if(card&&(seed===undefined||card.seed===seed&&card.levelRules===revision)&&(!requestedLevel||card.level===requestedLevel)){
+  render();save();status('');
+ }else generate(seed,revision);
  if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 })();

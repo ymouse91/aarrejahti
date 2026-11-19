@@ -16,7 +16,7 @@ const CardDifficulty=(()=>{
  }
  function scoreTask(board,task){
   const ids=task.clueIds,rules=ids.map(id=>data.catalog[id-1].rule),kind=task.kind||'normal';
-  const removals=board.landmarks.filter(m=>board.landmarks.filter(n=>n.s===m.s&&n.color===m.color).length>1);
+  const removals=kind==='disappearance'?board.landmarks.filter(m=>board.landmarks.filter(n=>n.s===m.s&&n.color===m.color).length>1):[];
   const variants=new Map(removals.map(m=>[m.id,{...board,landmarks:board.landmarks.filter(n=>n!==m)}]));
   const states=[];
   for(let cell=0;cell<120;cell++){
@@ -26,16 +26,19 @@ const CardDifficulty=(()=>{
   }
   const truth=[],keys=[],costs=[];
   rules.forEach((r,j)=>{
-   const original=G.compile(board,r),changed=new Map([...variants].map(([id,b])=>[id,G.compile(b,r)]));
+   const original=G.compile(board,r),originalPrice=price(board,r);
+   const changed=new Map(removals.map(m=>{
+    const variant=variants.get(m.id);
+    const affected=[r.ref,r.other].some(ref=>ref?.kind==='markers'&&ref.shape===m.s&&ref.color===m.color);
+    return [m.id,{matches:G.compile(variant,r),price:price(variant,r),affected}];
+   }));
    truth[j]=[];keys[j]=[];costs[j]=new Map();
    states.forEach(([cell,h],s)=>{
-    const b=kind==='disappearance'?variants.get(h):board;
-    const raw=kind==='disappearance'?changed.get(h)(cell):original(cell);
+    const variant=changed.get(h);
+    const raw=variant?variant.matches(cell):original(cell);
     truth[j][s]=raw!==(kind==='skull'&&h===ids[j]);
-    const marker=kind==='disappearance'?board.landmarks.find(m=>m.id===h):null;
-    const affected=marker&&[r.ref,r.other].some(ref=>ref?.kind==='markers'&&ref.shape===marker.s&&ref.color===marker.color);
-    const key=cell+(affected?(h+1)*120:0);
-    keys[j][s]=key;costs[j].set(key,price(b,r));
+    const key=cell+(variant?.affected?(h+1)*120:0);
+    keys[j][s]=key;costs[j].set(key,variant?.price??originalPrice);
    });
   });
   const values=[];let bestOrder=null,best=Infinity;

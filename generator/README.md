@@ -4,7 +4,7 @@ Puhelimella käytettävä lisäosa fyysiseen Aarrejahti-lautapeliin.
 
 **Avaa:** https://ymouse91.github.io/aarrejahti/generator/
 
-Arvo kortti, aseta kuviot laudalle ja ota valitun retken vihjekortit esiin. Näytöllä on yksi retki kerrallaan. Retkien järjestys on 1–4, harha, pääkallo. Ratkaisun tarkistus käyttää päivitetyn ratkaisukortin 314160 avainkoodeja. Mukana ovat kaikki vihjekortit 1–68. Sovelluksen versio on 1.3.0.
+Arvo kortti, aseta kuviot laudalle ja ota valitun retken vihjekortit esiin. Näytöllä on yksi retki kerrallaan. Retkien järjestys on 1–4, harha, pääkallo. Ratkaisun tarkistus käyttää päivitetyn ratkaisukortin 314160 avainkoodeja. Mukana ovat kaikki vihjekortit 1–68. Sovelluksen versio on 1.4.0.
 
 ## Asennus ja offline-käyttö
 
@@ -18,4 +18,13 @@ Sovellus on staattinen PWA: ei käyttäjätiliä, palvelinlaskentaa tai ulkoisia
 
 Sama vihje esiintyy kortilla enintään kahdesti, eikä sama vihje esiinny peräkkäisillä retkillä. Ehdot tarkistetaan tavallisten retkien lopullisen vaikeusjärjestyksen jälkeen, myös retkien 4–5 ja 5–6 välillä.
 
-Versiossa 1.3.0 on tasovalinta. Tavallinen: kokonaisvaikeus pyöristettynä 3200–3999. Haastava: vähintään 4000. Molemmilla tasoilla jokaisen tavallisen retken D1-arvo on vähintään 250. Valittu taso on mukana toistettavassa osoitteessa. Raja-arvot ovat suunnitteluarvoja.
+Kosketa tai klikkaa vihjenumeroa, niin vihjeen teksti avautuu puhekuplaan.
+
+| Vaikeustaso | Kortin pyöristetyt D1-yhteispisteet |
+| --- | --- |
+| Helppo | alle 3500 |
+| Tavallinen | 3500–4499 |
+| Haastava | 4500–7999 |
+| Vaikea | vähintään 8000 |
+
+Pisterajat vastaavat painetun korttisarjan rajoja. Jokaisen tavallisen retken D1-arvo on vähintään 250. Vaikean kortin arvonta voi kestää pidempään. Kortin osoite sisältää arvonnan siemenluvun, tason ja tasosääntöjen version. Aiemmat korttilinkit toimivat edelleen.
