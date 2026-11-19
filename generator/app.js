@@ -1,4 +1,31 @@
 (()=>{
+ const viewport=window.visualViewport;
+ const rootStyle=document.documentElement.style;
+ let resumeViewportTimer;
+ function fitViewport(){
+  // Keep the layout stable during manual zoom.
+  const unzoomed=viewport&&Math.abs(viewport.scale-1)<.01;
+  const width=Math.floor(Math.min(window.innerWidth,unzoomed?viewport.width:window.innerWidth));
+  const height=Math.floor(Math.min(window.innerHeight,unzoomed?viewport.height:window.innerHeight));
+  if(width>0&&height>0){
+   rootStyle.setProperty('--visible-width',width+'px');
+   rootStyle.setProperty('--visible-height',height+'px');
+  }
+ }
+ function resumeViewport(){
+  fitViewport();
+  requestAnimationFrame(fitViewport);
+  // iPadOS can restore the visible viewport after the page becomes visible.
+  clearTimeout(resumeViewportTimer);
+  resumeViewportTimer=setTimeout(fitViewport,250);
+ }
+ window.addEventListener('resize',fitViewport);
+ viewport?.addEventListener('resize',fitViewport);
+ window.addEventListener('pageshow',resumeViewport);
+ document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)resumeViewport();
+ });
+ fitViewport();
  const $=id=>document.getElementById(id),STORE='aarrejahti-card-generator-v1';
  const skull='<svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1C5 1 1 5 1 12c0 5 3 7 5 8v7h4v-5h4v5h4v-7c3-2 5-4 5-8C23 5 19 1 12 1ZM7 10a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm10 0a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" fill-rule="evenodd"/></svg>';
  const coord=id=>String.fromCharCode(65+id%12)+(1+Math.floor(id/12));

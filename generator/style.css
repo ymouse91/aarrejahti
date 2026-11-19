@@ -36,3 +36,8 @@ button.clue-number{padding:0;min-height:0;min-width:0;flex-basis:clamp(44px,14vw
 button.clue-number[aria-expanded="true"]{background:#355b2b;color:#fff;border-color:#355b2b}
 #clue-bubble{pointer-events:none;position:absolute;z-index:2;bottom:calc(100% + 7px);left:0;right:0;padding:11px 14px;border-radius:12px;background:#244e42;color:#fff;font-size:14px;line-height:1.4;box-shadow:0 3px 12px #203f3833}
 #clue-bubble::after{content:"";position:absolute;top:100%;left:var(--clue-anchor);transform:translateX(-50%);border:7px solid transparent;border-top-color:#244e42}
+
+:root{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{width:var(--visible-width,100%);height:var(--visible-height,100svh)}
+.app{overflow-y:auto}
+dialog{max-height:calc(var(--visible-height,100svh) * .85)}
