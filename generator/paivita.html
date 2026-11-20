@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Generaattorin päivitys</title></head>
+<body>
+<p role="status" id="status">Päivitetään karttakorttigeneraattoria…</p>
+<script>
+(async()=>{
+ try{
+  const prefix='cardgen-aarrejahti-';
+  const latest='cardgen-aarrejahti-v1.4.1-navigation';
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(key=>key.startsWith(prefix)&&key!==latest).map(key=>caches.delete(key)));
+  location.replace('./'+location.search);
+ }catch{
+  document.getElementById('status').textContent='Päivitys ei onnistunut. Tarkista verkkoyhteys ja lataa tämä sivu uudelleen.';
+ }
+})();
+</script>
+</body>
+</html>
